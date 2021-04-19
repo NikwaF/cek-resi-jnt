@@ -1,5 +1,7 @@
 const fetch = require('node-fetch');
 const readline = require('readline-sync');
+const chalk = require('chalk');
+const fs = require('fs');
 
 
 const cek = resi => new Promise((resolve,reject) => {
@@ -18,26 +20,58 @@ const cek = resi => new Promise((resolve,reject) => {
     const hasil = await res.json();
     const json = JSON.parse(JSON.parse(hasil).data);
     resolve(json);
-  });
+  }).catch(e => reject(e));
 });
 
+const genUniqueId = length =>
+    new Promise((resolve, reject) => {
+        var text = "";
+        var possible =
+            "1234567890";
 
-(async () => {
-  // JP7139218005
-  while(true){
+        for (var i = 0; i < length; i++)
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
 
+        resolve(text);
+    });
+
+;
+
+// JP7161644709
+ (async() => {
+   for (let index = 0; index < 50000; index++) {
+     try{
+       const trackingNumber = await genUniqueId(10)
+
+      let resinya = "";
+
+      try { 
+        resinya = await cek(`JP${trackingNumber}`);
+      } catch(e){
+        console.log(e);
+        continue;
+      }
+
+       if (resinya.details.length !== 0) {
+           if (resinya.details[resinya.details.length -1]["scantype"] === "TandaTerima") {
+
+                  const tahun = new Date(resinya.details[resinya.details.length -1]["scantime"])
+                  const thn = tahun.getFullYear()
+                  if (thn == "2021") {
+                      console.log(chalk.green(`JP${trackingNumber}|${resinya.details[resinya.details.length -1]["desc"]} => ${resinya.details[resinya.details.length -1]["city"]}|${resinya.details[resinya.details.length -1]["scantime"]}`))
+                    await fs.appendFileSync('result.txt', `JP${trackingNumber}\n`);
+                  } else{
+                    console.log(chalk.red(`JP${trackingNumber}|jadul resi tahun ${thn}`));
+                  }
+           } 
+       }else{
+           console.log(chalk.red(`JP${trackingNumber}|Gak Ketemu`));
+       }
+     }catch(e){
+      console.log(e);
+       continue;
+     }
+   }
   
-  const resi = await readline.question('Input Nomer Resi: ');
-  const detail = await cek(resi);
 
-  if(detail.details.length === 0){
-    console.log('Resi tidak ditemukan.');
-    continue;
-  }
-
-  detail.details.forEach((item,i) => {
-      console.log(`${i+1}. [${item.scantime}] | ${item.scanstatus} - ${item.siteName} - ${item.city} | ${item.desc}`);
-  });
-  continue;
-  }
-})();
+ })();
